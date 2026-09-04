@@ -1,0 +1,25 @@
+services:
+  shadow:
+    build:
+      context: .
+    image: alfa-sync-bot-shadow:local
+    container_name: alfa_sync_bot_v2_shadow
+    restart: unless-stopped
+    command:
+      - shadow
+      - --report
+      - /legacy-data/alfa_data_parsed.json
+      - --database
+      - /state/shadow.sqlite3
+      - --interval-seconds
+      - "300"
+    environment:
+      TZ: Asia/Yekaterinburg
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - /mnt/sda_500gb/obsidian/data/AlfaCRM/data:/legacy-data:ro
+      - ${SHADOW_STATE_DIR:?Set SHADOW_STATE_DIR in the server-side .env}:/state
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
