@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+auth/
+data/
+*.sqlite3
+*.db
+debug/
+*.html
+*.png
+alfa_sync/
