@@ -117,9 +117,43 @@ VALUES (1, CURRENT_TIMESTAMP);
 COMMIT;
 """
 
+MIGRATION_2 = """
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS runtime_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT OR IGNORE INTO schema_migrations (version, applied_at)
+VALUES (2, CURRENT_TIMESTAMP);
+
+COMMIT;
+"""
+
 
 def apply_migrations(connection: sqlite3.Connection) -> None:
     connection.executescript(MIGRATION_1)
+    connection.executescript(MIGRATION_2)
+
+
+def get_runtime_state(connection: sqlite3.Connection, key: str) -> str | None:
+    row = connection.execute(
+        "SELECT value FROM runtime_state WHERE key = ?", (key,)
+    ).fetchone()
+    return None if row is None else row[0]
+
+
+def set_runtime_state(
+    connection: sqlite3.Connection, key: str, value: str
+) -> None:
+    connection.execute(
+        "INSERT INTO runtime_state (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET "
+        "value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+        (key, value),
+    )
 
 
 def _assert_integrity(connection: sqlite3.Connection) -> None:

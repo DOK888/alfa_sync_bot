@@ -1,0 +1,11 @@
+services:
+  telegram:
+    container_name: alfa_sync_bot_v2_telegram
+    build: .
+    image: alfa-sync-bot:local
+    command: telegram --database /state/shadow.sqlite3
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ${SHADOW_STATE_DIR}:/state

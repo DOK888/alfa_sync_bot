@@ -1,10 +1,15 @@
 import argparse
 import json
+import os
 from pathlib import Path
+import sqlite3
 import sys
 import time
 
+from .database import apply_migrations
 from .shadow import run_shadow_import
+from .telegram_api import TelegramApiError, TelegramHttpClient
+from .telegram_runtime import process_updates
 
 
 def _shadow_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -17,6 +22,11 @@ def _shadow_parser(subparsers: argparse._SubParsersAction) -> None:
         type=int,
         help="Repeat the import at this interval; zero runs once.",
     )
+
+
+def _telegram_parser(subparsers: argparse._SubParsersAction) -> None:
+    telegram = subparsers.add_parser("telegram")
+    telegram.add_argument("--database", required=True, type=Path)
 
 
 def _print_shadow_result(result) -> None:
@@ -36,7 +46,28 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="alfa-sync-bot")
     subparsers = parser.add_subparsers(dest="command", required=True)
     _shadow_parser(subparsers)
+    _telegram_parser(subparsers)
     args = parser.parse_args(argv)
+
+    if args.command == "telegram":
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+        if not token:
+            print("TELEGRAM_BOT_TOKEN is required", file=sys.stderr)
+            return 2
+        connection = sqlite3.connect(args.database)
+        try:
+            apply_migrations(connection)
+            client = TelegramHttpClient(token)
+            while True:
+                try:
+                    process_updates(client, connection)
+                except TelegramApiError as error:
+                    print(f"telegram polling failed: {error}", file=sys.stderr)
+                    time.sleep(5)
+        except KeyboardInterrupt:
+            return 0
+        finally:
+            connection.close()
 
     if args.command != "shadow":
         parser.error("unknown command")
