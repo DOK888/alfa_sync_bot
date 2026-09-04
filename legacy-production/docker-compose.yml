@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  alfa_sync:
+    build: .
+    container_name: alfa_sync_bot
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+    volumes:
+      - .:/workspace
+      - /mnt/sda_500gb/obsidian/data:/vault
+    environment:
+      - TZ=Europe/Moscow

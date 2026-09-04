@@ -1,0 +1,11 @@
+playwright==1.44.0
+schedule==1.2.1
+python-dotenv==1.0.1
+ics==0.7.2
+pytz
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+aiogram==3.15.0
+google-generativeai
