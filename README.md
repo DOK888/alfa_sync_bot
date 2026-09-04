@@ -31,15 +31,23 @@ python -m alfa_sync_bot shadow --report C:\path\to\alfa_data_parsed.json --datab
 
 На сервере применяется `docker-compose.shadow.yml`. Он не публикует порт, не монтирует `auth` и не использует Telegram token. Перед запуском на сервере создаётся отдельный `.env` из `.env.example` только со значением `SHADOW_STATE_DIR`.
 
+## Telegram запуск
+
+Это обновление того же бота и того же токена, а не второй Telegram-аккаунт. `docker-compose.telegram.yml` читает расписание только из shadow SQLite и отвечает лишь на сообщения, в которых распознаны незачёркнутые предложения замены. Обычный текст он молча пропускает. Он не принимает и не создаёт уроки.
+
+В серверном `.env` вручную указываются `SHADOW_STATE_DIR` и `TELEGRAM_BOT_TOKEN`; сам файл остаётся вне Git. Перед запуском нового polling-процесса старый `alfa_sync_bot` останавливают. Возврат простой: остановить `alfa_sync_bot_v2_telegram` и снова запустить старый контейнер.
+
 ## Структура
 
 - `src/alfa_sync_bot/availability.py` — интервалы, конфликты и сдвиги;
 - `src/alfa_sync_bot/replacement_parser.py` — детерминированный parser сообщения;
 - `src/alfa_sync_bot/replacement_service.py` — перевод времени и сортировка результата;
 - `src/alfa_sync_bot/rendering.py` — информационный Telegram-текст;
-- `src/alfa_sync_bot/database.py` — первая SQLite migration;
+- `src/alfa_sync_bot/database.py` — SQLite migrations и сохранённая позиция Telegram updates;
 - `src/alfa_sync_bot/lesson_sync.py` — diff и dedup снимков уроков;
 - `src/alfa_sync_bot/finance.py` — календарные периоды и финансовые итоги;
+- `src/alfa_sync_bot/telegram_runtime.py` — read-only обработка Telegram updates;
+- `src/alfa_sync_bot/telegram_api.py` — минимальный Telegram HTTP adapter;
 - `tests/` — синтетические unit/integration tests без CRM и сети;
 - `alfa_sync/` — локальный недоверенный кандидат, полностью исключённый из Git.
 

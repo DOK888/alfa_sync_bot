@@ -1,14 +1,28 @@
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from alfa_sync_bot.__main__ import main
 
 
 class CliTests(unittest.TestCase):
+    def test_telegram_command_requires_a_token_without_echoing_environment(self):
+        output = io.StringIO()
+        errors = io.StringIO()
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": ""}):
+            with redirect_stdout(output), redirect_stderr(errors):
+                exit_code = main(["telegram", "--database", "state.sqlite3"])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("TELEGRAM_BOT_TOKEN is required", errors.getvalue())
+        self.assertNotIn("TELEGRAM_BOT_TOKEN=", errors.getvalue())
+
     def test_shadow_command_outputs_aggregate_counts_only(self):
         payload = {
             "tetrika": {

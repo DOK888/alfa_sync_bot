@@ -6,12 +6,29 @@ import unittest
 from alfa_sync_bot.database import (
     apply_migrations,
     backup_database,
+    get_runtime_state,
     migrate_database,
     restore_database,
+    set_runtime_state,
 )
 
 
 class DatabaseTests(unittest.TestCase):
+    def test_runtime_state_persists_an_update_offset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "bot.sqlite3"
+            connection = sqlite3.connect(database_path)
+            apply_migrations(connection)
+            set_runtime_state(connection, "telegram.next_update_id", "42")
+            connection.commit()
+            connection.close()
+
+            reopened = sqlite3.connect(database_path)
+            self.assertEqual(
+                get_runtime_state(reopened, "telegram.next_update_id"), "42"
+            )
+            reopened.close()
+
     def test_first_migration_creates_schedule_and_finance_foundation(self):
         connection = sqlite3.connect(":memory:")
 
