@@ -5,6 +5,25 @@ from datetime import date
 
 
 class ReplacementParserTests(unittest.TestCase):
+    def test_short_date_heading_and_next_line_time_create_offers(self):
+        message = (
+            "05.09 Срочные\n"
+            "Group_A (90 минут)\n"
+            "16:00 — 17:30\n"
+            "Group_B (60 минут)\n"
+            "11:00 — 12:00"
+        )
+
+        parsed = parse_replacement_message(
+            message, reference_date=date(2026, 9, 5)
+        )
+
+        self.assertEqual([offer.name for offer in parsed.offers], ["Group_A", "Group_B"])
+        self.assertEqual(
+            [offer.start.isoformat() for offer in parsed.offers],
+            ["2026-09-05T16:00:00+03:00", "2026-09-05T11:00:00+03:00"],
+        )
+
     def test_tomorrow_heading_uses_message_date_as_context(self):
         message = (
             "Срочная замена на завтра\n"

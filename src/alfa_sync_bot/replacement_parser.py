@@ -18,10 +18,22 @@ SHORT_DATE_LINE = re.compile(
     r"^(?P<kind>.*?\bс\s+)(?P<date>\d{1,2}\.\d{2})(?:\s+(?P<tail>.*?))?\s*$",
     re.IGNORECASE,
 )
+BARE_SHORT_DATE_LINE = re.compile(
+    r"^(?P<date>\d{1,2}\.\d{2})(?:\s+(?P<kind>.*?))?\s*$"
+)
 RELATIVE_DATE_LINE = re.compile(r"\b(?P<relative>сегодня|завтра)\b", re.IGNORECASE)
 OFFER_LINE = re.compile(
     r"^(?P<name>.+?)\s*\((?P<duration>\d+)\s*минут[а-я]*\)\s*"
     r"(?:с\s*)?(?P<start>\d{1,2}:\d{2})\s*(?:—|–|-|до)\s*"
+    r"(?P<end>\d{1,2}:\d{2})\s*$",
+    re.IGNORECASE,
+)
+OFFER_TITLE_LINE = re.compile(
+    r"^(?P<name>.+?)\s*\((?P<duration>\d+)\s*минут[а-я]*\)\s*$",
+    re.IGNORECASE,
+)
+TIME_LINE = re.compile(
+    r"^(?:с\s*)?(?P<start>\d{1,2}:\d{2})\s*(?:—|–|-|до)\s*"
     r"(?P<end>\d{1,2}:\d{2})\s*$",
     re.IGNORECASE,
 )
@@ -151,6 +163,7 @@ def parse_replacement_message(
     replacement_type = ""
     offers = []
     unresolved_offer_count = 0
+    pending_offer: tuple[re.Match[str], int, int] | None = None
 
     lines_with_offsets = []
     offset = 0
@@ -166,6 +179,7 @@ def parse_replacement_message(
 
         date_match = DATE_LINE.match(line)
         if date_match:
+            pending_offer = None
             current_date = datetime.strptime(
                 date_match.group("date"), "%d.%m.%Y"
             ).date()
@@ -174,6 +188,7 @@ def parse_replacement_message(
 
         russian_date_match = RUSSIAN_DATE_LINE.match(line)
         if russian_date_match:
+            pending_offer = None
             current_date = date(
                 reference_year,
                 RUSSIAN_MONTHS[russian_date_match.group("month").lower()],
@@ -184,22 +199,76 @@ def parse_replacement_message(
 
         short_date_match = SHORT_DATE_LINE.match(line)
         if short_date_match:
+            pending_offer = None
             current_date = datetime.strptime(
                 f"{short_date_match.group('date')}.{reference_year}", "%d.%m.%Y"
             ).date()
             replacement_type = line
             continue
 
+        bare_short_date_match = BARE_SHORT_DATE_LINE.match(line)
+        if bare_short_date_match:
+            pending_offer = None
+            current_date = datetime.strptime(
+                f"{bare_short_date_match.group('date')}.{reference_year}",
+                "%d.%m.%Y",
+            ).date()
+            replacement_type = (bare_short_date_match.group("kind") or "").strip()
+            continue
+
         relative_date_match = RELATIVE_DATE_LINE.search(line)
         if relative_date_match:
+            pending_offer = None
             current_date = reference_date
             if relative_date_match.group("relative").lower() == "завтра":
                 current_date = current_date.fromordinal(current_date.toordinal() + 1)
             replacement_type = line
             continue
 
+        if pending_offer is not None:
+            time_match = TIME_LINE.match(line)
+            if time_match:
+                offer_match, title_offset, title_leading_space = pending_offer
+                if current_date is None:
+                    unresolved_offer_count += 1
+                else:
+                    start_time = datetime.strptime(
+                        time_match.group("start"), "%H:%M"
+                    ).time()
+                    end_time = datetime.strptime(
+                        time_match.group("end"), "%H:%M"
+                    ).time()
+                    name_start = (
+                        title_offset + title_leading_space + offer_match.start("name")
+                    )
+                    name_end = (
+                        title_offset + title_leading_space + offer_match.end("name")
+                    )
+                    offers.append(
+                        ParsedOffer(
+                            name=offer_match.group("name").strip(),
+                            replacement_type=replacement_type,
+                            start=datetime.combine(
+                                current_date, start_time, tzinfo=MOSCOW
+                            ),
+                            end=datetime.combine(current_date, end_time, tzinfo=MOSCOW),
+                            declared_duration_minutes=int(
+                                offer_match.group("duration")
+                            ),
+                            external_group_id=_group_id_for_span(
+                                entities, name_start, name_end
+                            ),
+                        )
+                    )
+                pending_offer = None
+                continue
+            pending_offer = None
+
         offer_match = OFFER_LINE.match(line)
         if not offer_match:
+            title_match = OFFER_TITLE_LINE.match(line)
+            if title_match:
+                pending_offer = (title_match, line_offset, leading_space)
             continue
         if current_date is None:
             unresolved_offer_count += 1
