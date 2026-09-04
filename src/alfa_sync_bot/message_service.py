@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 import sqlite3
 
 from .availability import TimeInterval
@@ -25,8 +25,23 @@ def analyze_replacement_text(
     text: str,
     connection: sqlite3.Connection,
     entities: tuple[MessageEntity, ...] = (),
+    *,
+    reference_date: date | None = None,
 ) -> str:
-    if not parse_replacement_message(text, entities).offers:
+    parsed = parse_replacement_message(
+        text, entities, reference_date=reference_date
+    )
+    if not parsed.offers and parsed.unresolved_offer_count:
+        return (
+            "Нашёл предложение замены, но не смог определить дату. "
+            "Пришли строку с датой или уточни, это сегодня или завтра."
+        )
+    if not parsed.offers:
         return "Не нашёл предложений замены в сообщении."
-    items = analyze_message(text, load_active_intervals(connection), entities)
+    items = analyze_message(
+        text,
+        load_active_intervals(connection),
+        entities,
+        reference_date=reference_date,
+    )
     return render_analysis(items)

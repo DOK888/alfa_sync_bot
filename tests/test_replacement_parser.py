@@ -1,9 +1,23 @@
 import unittest
 
 from alfa_sync_bot.replacement_parser import MessageEntity, parse_replacement_message
+from datetime import date
 
 
 class ReplacementParserTests(unittest.TestCase):
+    def test_tomorrow_heading_uses_message_date_as_context(self):
+        message = (
+            "Срочная замена на завтра\n"
+            "Python_1 (60 минут) 12:00 — 13:00"
+        )
+
+        parsed = parse_replacement_message(
+            message, reference_date=date(2026, 9, 5)
+        )
+
+        self.assertEqual(len(parsed.offers), 1)
+        self.assertEqual(parsed.offers[0].start.isoformat(), "2026-09-06T12:00:00+03:00")
+
     def test_russian_and_short_date_headings_apply_to_following_offers(self):
         message = (
             "5 сентября\n"

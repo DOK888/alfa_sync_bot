@@ -7,6 +7,16 @@ from alfa_sync_bot.message_service import analyze_replacement_text
 
 
 class MessageServiceTests(unittest.TestCase):
+    def test_reports_offer_that_needs_a_date_instead_of_silence(self):
+        connection = sqlite3.connect(":memory:")
+        apply_migrations(connection)
+
+        result = analyze_replacement_text(
+            "Python_1 (60 минут) 12:00 — 13:00", connection
+        )
+
+        self.assertIn("не смог определить дату", result.lower())
+
     def test_uses_sqlite_schedule_and_returns_information_only(self):
         connection = sqlite3.connect(":memory:")
         apply_migrations(connection)

@@ -1,8 +1,9 @@
 import sqlite3
+from datetime import date, datetime, timezone
 import unittest
 
 from alfa_sync_bot.database import apply_migrations, get_runtime_state
-from alfa_sync_bot.telegram_runtime import process_updates
+from alfa_sync_bot.telegram_runtime import message_reference_date, process_updates
 
 
 class FakeTelegramClient:
@@ -20,6 +21,13 @@ class FakeTelegramClient:
 
 
 class TelegramRuntimeTests(unittest.TestCase):
+    def test_message_timestamp_becomes_yekaterinburg_reference_date(self):
+        message = {
+            "date": int(datetime(2026, 9, 5, 21, tzinfo=timezone.utc).timestamp())
+        }
+
+        self.assertEqual(message_reference_date(message), date(2026, 9, 6))
+
     def test_recognized_offer_receives_reply_and_persists_next_offset(self):
         connection = sqlite3.connect(":memory:")
         apply_migrations(connection)

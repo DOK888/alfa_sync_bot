@@ -18,6 +18,7 @@ SHORT_DATE_LINE = re.compile(
     r"^(?P<kind>.*?\bс\s+)(?P<date>\d{1,2}\.\d{2})(?:\s+(?P<tail>.*?))?\s*$",
     re.IGNORECASE,
 )
+RELATIVE_DATE_LINE = re.compile(r"\b(?P<relative>сегодня|завтра)\b", re.IGNORECASE)
 OFFER_LINE = re.compile(
     r"^(?P<name>.+?)\s*\((?P<duration>\d+)\s*минут[а-я]*\)\s*"
     r"(?:с\s*)?(?P<start>\d{1,2}:\d{2})\s*(?:—|–|-|до)\s*"
@@ -70,6 +71,7 @@ class MessageEntity:
 @dataclass(frozen=True)
 class ParsedMessage:
     offers: tuple[ParsedOffer, ...]
+    unresolved_offer_count: int = 0
 
 
 def _utf16_offset_to_index(text: str, offset: int) -> int:
@@ -137,14 +139,18 @@ def parse_replacement_message(
     entities: tuple[MessageEntity, ...] = (),
     *,
     reference_year: int | None = None,
+    reference_date: date | None = None,
 ) -> ParsedMessage:
     entities = _telegram_entities_to_python_indices(text, entities)
     text = _without_struck_text(text, entities)
     current_date: date | None = None
+    if reference_date is None:
+        reference_date = datetime.now(MOSCOW).date()
     if reference_year is None:
-        reference_year = datetime.now(MOSCOW).year
+        reference_year = reference_date.year
     replacement_type = ""
     offers = []
+    unresolved_offer_count = 0
 
     lines_with_offsets = []
     offset = 0
@@ -184,8 +190,19 @@ def parse_replacement_message(
             replacement_type = line
             continue
 
+        relative_date_match = RELATIVE_DATE_LINE.search(line)
+        if relative_date_match:
+            current_date = reference_date
+            if relative_date_match.group("relative").lower() == "завтра":
+                current_date = current_date.fromordinal(current_date.toordinal() + 1)
+            replacement_type = line
+            continue
+
         offer_match = OFFER_LINE.match(line)
-        if not offer_match or current_date is None:
+        if not offer_match:
+            continue
+        if current_date is None:
+            unresolved_offer_count += 1
             continue
 
         start_time = datetime.strptime(offer_match.group("start"), "%H:%M").time()
@@ -205,4 +222,6 @@ def parse_replacement_message(
             )
         )
 
-    return ParsedMessage(offers=tuple(offers))
+    return ParsedMessage(
+        offers=tuple(offers), unresolved_offer_count=unresolved_offer_count
+    )

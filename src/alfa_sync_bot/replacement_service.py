@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from .availability import Offer, TimeInterval, YEKATERINBURG, assess_offers
@@ -28,8 +28,12 @@ def analyze_message(
     text: str,
     scheduled: list[TimeInterval],
     entities: tuple[MessageEntity, ...] = (),
+    *,
+    reference_date: date | None = None,
 ) -> list[AnalyzedOffer]:
-    parsed = parse_replacement_message(text, entities=entities)
+    parsed = parse_replacement_message(
+        text, entities=entities, reference_date=reference_date
+    )
     valid = []
     for index, offer in enumerate(parsed.offers):
         if offer.duration_matches:

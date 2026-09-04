@@ -1,6 +1,8 @@
 from collections.abc import Iterable
+from datetime import date, datetime
 from typing import Protocol
 import sqlite3
+from zoneinfo import ZoneInfo
 
 from .database import get_runtime_state, set_runtime_state
 from .message_service import analyze_replacement_text
@@ -8,6 +10,7 @@ from .replacement_parser import MessageEntity, parse_replacement_message
 
 
 STATE_KEY = "telegram.next_update_id"
+YEKATERINBURG = ZoneInfo("Asia/Yekaterinburg")
 
 
 class TelegramClient(Protocol):
@@ -29,6 +32,13 @@ def _message_entities(message: dict) -> tuple[MessageEntity, ...]:
     )
 
 
+def message_reference_date(message: dict) -> date | None:
+    timestamp = message.get("date")
+    if not isinstance(timestamp, int):
+        return None
+    return datetime.fromtimestamp(timestamp, tz=YEKATERINBURG).date()
+
+
 def process_updates(
     client: TelegramClient, connection: sqlite3.Connection
 ) -> int | None:
@@ -48,11 +58,20 @@ def process_updates(
             if isinstance(text, str) and isinstance(chat, dict):
                 chat_id = chat.get("id")
                 entities = _message_entities(message)
-                if isinstance(chat_id, int) and parse_replacement_message(
-                    text, entities
-                ).offers:
+                parsed = parse_replacement_message(
+                    text, entities, reference_date=message_reference_date(message)
+                )
+                if isinstance(chat_id, int) and (
+                    parsed.offers or parsed.unresolved_offer_count
+                ):
                     client.send_message(
-                        chat_id, analyze_replacement_text(text, connection, entities)
+                        chat_id,
+                        analyze_replacement_text(
+                            text,
+                            connection,
+                            entities,
+                            reference_date=message_reference_date(message),
+                        ),
                     )
 
         candidate_offset = update_id + 1
