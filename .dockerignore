@@ -1,0 +1,17 @@
+.git/
+.venv/
+__pycache__/
+.env*
+auth/
+data/
+debug/
+alfa_sync/
+*.sqlite3
+*.db
+*.json
+*.ics
+*.html
+*.png
+tests/
+legacy-production/
+docs/

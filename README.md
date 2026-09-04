@@ -20,6 +20,17 @@
 
 Бот не создаёт урок из сообщения менеджера. Назначенный урок появляется только после следующего импорта из CRM.
 
+## Shadow запуск
+
+Первый запуск новой версии — только shadow. Он читает старый `alfa_data_parsed.json` и создаёт отдельную SQLite, но не запускает Telegram, Google Calendar или CRM браузер.
+
+```powershell
+$env:PYTHONPATH = 'src'
+python -m alfa_sync_bot shadow --report C:\path\to\alfa_data_parsed.json --database .\state\shadow.sqlite3
+```
+
+На сервере применяется `docker-compose.shadow.yml`. Он не публикует порт, не монтирует `auth` и не использует Telegram token. Перед запуском на сервере создаётся отдельный `.env` из `.env.example` только со значением `SHADOW_STATE_DIR`.
+
 ## Структура
 
 - `src/alfa_sync_bot/availability.py` — интервалы, конфликты и сдвиги;
