@@ -7,7 +7,11 @@ from zoneinfo import ZoneInfo
 from .database import get_runtime_state, set_runtime_state
 from .gemini_fallback import should_use_fallback
 from .message_service import analyze_replacement_text
-from .replacement_parser import MessageEntity, parse_replacement_message
+from .replacement_parser import (
+    MessageEntity,
+    parse_replacement_message,
+    text_without_struck_entities,
+)
 
 
 STATE_KEY = "telegram.next_update_id"
@@ -77,7 +81,9 @@ def process_updates(
                     and should_use_fallback(text)
                     and (not parsed.offers or parsed.unresolved_offer_count)
                 ):
-                    canonical = fallback.canonicalize(text, reference_date)
+                    canonical = fallback.canonicalize(
+                        text_without_struck_entities(text, entities), reference_date
+                    )
                     if canonical:
                         analysis_text = canonical
                         analysis_entities = ()

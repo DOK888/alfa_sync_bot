@@ -1,10 +1,24 @@
 import unittest
 
-from alfa_sync_bot.replacement_parser import MessageEntity, parse_replacement_message
+from alfa_sync_bot.replacement_parser import (
+    MessageEntity,
+    parse_replacement_message,
+    text_without_struck_entities,
+)
 from datetime import date
 
 
 class ReplacementParserTests(unittest.TestCase):
+    def test_text_for_fallback_masks_struck_offer(self):
+        text = "Keep_1 (60 минут) 12:00 — 13:00\nSkip_2 (60 минут) 14:00 — 15:00"
+        start = text.index("Skip_2")
+        entities = (MessageEntity("strikethrough", start, len("Skip_2 (60 минут) 14:00 — 15:00")),)
+
+        sanitized = text_without_struck_entities(text, entities)
+
+        self.assertIn("Keep_1", sanitized)
+        self.assertNotIn("Skip_2", sanitized)
+
     def test_short_date_heading_and_next_line_time_create_offers(self):
         message = (
             "05.09 Срочные\n"

@@ -129,6 +129,14 @@ def _without_struck_text(
     return "".join(characters)
 
 
+def text_without_struck_entities(
+    text: str, entities: tuple[MessageEntity, ...]
+) -> str:
+    return _without_struck_text(
+        text, _telegram_entities_to_python_indices(text, entities)
+    )
+
+
 def _group_id_for_span(
     entities: tuple[MessageEntity, ...], start: int, end: int
 ) -> str | None:
