@@ -2,10 +2,13 @@ from datetime import date
 import json
 import unittest
 
-from alfa_sync_bot.gemini_fallback import parse_gemini_draft
+from alfa_sync_bot.gemini_fallback import parse_gemini_draft, should_use_fallback
 
 
 class GeminiFallbackTests(unittest.TestCase):
+    def test_ordinary_chat_text_does_not_call_the_model(self):
+        self.assertFalse(should_use_fallback("Привет, как дела?"))
+
     def test_valid_json_draft_becomes_canonical_replacement_text(self):
         payload = json.dumps(
             {
@@ -46,4 +49,3 @@ class GeminiFallbackTests(unittest.TestCase):
         )
 
         self.assertIsNone(parse_gemini_draft(payload, reference_date=date(2026, 9, 5)))
-

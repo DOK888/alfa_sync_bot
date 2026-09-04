@@ -5,6 +5,7 @@ import sqlite3
 from zoneinfo import ZoneInfo
 
 from .database import get_runtime_state, set_runtime_state
+from .gemini_fallback import should_use_fallback
 from .message_service import analyze_replacement_text
 from .replacement_parser import MessageEntity, parse_replacement_message
 
@@ -71,7 +72,11 @@ def process_updates(
                 )
                 analysis_text = text
                 analysis_entities = entities
-                if fallback and (not parsed.offers or parsed.unresolved_offer_count):
+                if (
+                    fallback
+                    and should_use_fallback(text)
+                    and (not parsed.offers or parsed.unresolved_offer_count)
+                ):
                     canonical = fallback.canonicalize(text, reference_date)
                     if canonical:
                         analysis_text = canonical

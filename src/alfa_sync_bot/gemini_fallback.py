@@ -1,5 +1,6 @@
 from datetime import date, datetime
 import json
+import re
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -13,6 +14,11 @@ REQUIRED_OFFER_KEYS = {
     "duration_minutes",
     "replacement_type",
 }
+REPLACEMENT_HINT = re.compile(r"\bзамен|\d{1,2}:\d{2}|\d+\s*минут", re.IGNORECASE)
+
+
+def should_use_fallback(text: str) -> bool:
+    return bool(REPLACEMENT_HINT.search(text))
 
 
 class GeminiFallback:

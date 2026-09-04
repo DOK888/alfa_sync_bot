@@ -30,7 +30,7 @@ class TelegramRuntimeTests(unittest.TestCase):
         connection = sqlite3.connect(":memory:")
         apply_migrations(connection)
         client = FakeTelegramClient(
-            [{"update_id": 1, "message": {"chat": {"id": 1001}, "text": "Новый формат"}}]
+            [{"update_id": 1, "message": {"chat": {"id": 1001}, "text": "Новая замена"}}]
         )
 
         process_updates(client, connection, fallback=FakeFallback())
