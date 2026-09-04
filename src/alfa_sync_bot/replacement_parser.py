@@ -9,12 +9,36 @@ MOSCOW = ZoneInfo("Europe/Moscow")
 DATE_LINE = re.compile(
     r"^(?P<date>\d{2}\.\d{2}\.\d{4})(?:\s+(?P<kind>.*?))?\s*$"
 )
+RUSSIAN_DATE_LINE = re.compile(
+    r"^(?P<day>\d{1,2})\s+(?P<month>января|февраля|марта|апреля|мая|июня|"
+    r"июля|августа|сентября|октября|ноября|декабря)(?:\s+(?P<kind>.*?))?\s*$",
+    re.IGNORECASE,
+)
+SHORT_DATE_LINE = re.compile(
+    r"^(?P<kind>.*?\bс\s+)(?P<date>\d{1,2}\.\d{2})(?:\s+(?P<tail>.*?))?\s*$",
+    re.IGNORECASE,
+)
 OFFER_LINE = re.compile(
     r"^(?P<name>.+?)\s*\((?P<duration>\d+)\s*минут[а-я]*\)\s*"
     r"(?:с\s*)?(?P<start>\d{1,2}:\d{2})\s*(?:—|–|-|до)\s*"
     r"(?P<end>\d{1,2}:\d{2})\s*$",
     re.IGNORECASE,
 )
+
+RUSSIAN_MONTHS = {
+    "января": 1,
+    "февраля": 2,
+    "марта": 3,
+    "апреля": 4,
+    "мая": 5,
+    "июня": 6,
+    "июля": 7,
+    "августа": 8,
+    "сентября": 9,
+    "октября": 10,
+    "ноября": 11,
+    "декабря": 12,
+}
 
 
 @dataclass(frozen=True)
@@ -109,11 +133,16 @@ def _group_id_for_span(
 
 
 def parse_replacement_message(
-    text: str, entities: tuple[MessageEntity, ...] = ()
+    text: str,
+    entities: tuple[MessageEntity, ...] = (),
+    *,
+    reference_year: int | None = None,
 ) -> ParsedMessage:
     entities = _telegram_entities_to_python_indices(text, entities)
     text = _without_struck_text(text, entities)
     current_date: date | None = None
+    if reference_year is None:
+        reference_year = datetime.now(MOSCOW).year
     replacement_type = ""
     offers = []
 
@@ -135,6 +164,24 @@ def parse_replacement_message(
                 date_match.group("date"), "%d.%m.%Y"
             ).date()
             replacement_type = (date_match.group("kind") or "").strip()
+            continue
+
+        russian_date_match = RUSSIAN_DATE_LINE.match(line)
+        if russian_date_match:
+            current_date = date(
+                reference_year,
+                RUSSIAN_MONTHS[russian_date_match.group("month").lower()],
+                int(russian_date_match.group("day")),
+            )
+            replacement_type = (russian_date_match.group("kind") or "").strip()
+            continue
+
+        short_date_match = SHORT_DATE_LINE.match(line)
+        if short_date_match:
+            current_date = datetime.strptime(
+                f"{short_date_match.group('date')}.{reference_year}", "%d.%m.%Y"
+            ).date()
+            replacement_type = line
             continue
 
         offer_match = OFFER_LINE.match(line)

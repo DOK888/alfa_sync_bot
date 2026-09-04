@@ -4,6 +4,20 @@ from alfa_sync_bot.replacement_parser import MessageEntity, parse_replacement_me
 
 
 class ReplacementParserTests(unittest.TestCase):
+    def test_russian_and_short_date_headings_apply_to_following_offers(self):
+        message = (
+            "5 сентября\n"
+            "Stencyl_16 (90 минут) 10:30 — 12:00\n"
+            "Постоянная замена с 05.09\n"
+            "Lua_233 (90 минут) 15:00 — 16:30"
+        )
+
+        parsed = parse_replacement_message(message, reference_year=2026)
+
+        self.assertEqual(len(parsed.offers), 2)
+        self.assertEqual(parsed.offers[0].start.isoformat(), "2026-09-05T10:30:00+03:00")
+        self.assertEqual(parsed.offers[1].start.isoformat(), "2026-09-05T15:00:00+03:00")
+
     def test_telegram_utf16_offsets_are_converted_before_masking(self):
         active = "Group A (60 минут) 12:00 - 13:00"
         struck = "Group B (60 минут) 13:00 - 14:00"
