@@ -48,6 +48,35 @@ class ParsedMessage:
     offers: tuple[ParsedOffer, ...]
 
 
+def _utf16_offset_to_index(text: str, offset: int) -> int:
+    if offset <= 0:
+        return 0
+    units = 0
+    for index, character in enumerate(text):
+        units += len(character.encode("utf-16-le")) // 2
+        if units >= offset:
+            return index + 1
+    return len(text)
+
+
+def _telegram_entities_to_python_indices(
+    text: str, entities: tuple[MessageEntity, ...]
+) -> tuple[MessageEntity, ...]:
+    converted = []
+    for entity in entities:
+        start = _utf16_offset_to_index(text, entity.offset)
+        end = _utf16_offset_to_index(text, entity.offset + entity.length)
+        converted.append(
+            MessageEntity(
+                kind=entity.kind,
+                offset=start,
+                length=end - start,
+                url=entity.url,
+            )
+        )
+    return tuple(converted)
+
+
 def _without_struck_text(
     text: str, entities: tuple[MessageEntity, ...]
 ) -> str:
@@ -82,6 +111,7 @@ def _group_id_for_span(
 def parse_replacement_message(
     text: str, entities: tuple[MessageEntity, ...] = ()
 ) -> ParsedMessage:
+    entities = _telegram_entities_to_python_indices(text, entities)
     text = _without_struck_text(text, entities)
     current_date: date | None = None
     replacement_type = ""

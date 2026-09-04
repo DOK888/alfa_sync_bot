@@ -4,6 +4,27 @@ from alfa_sync_bot.replacement_parser import MessageEntity, parse_replacement_me
 
 
 class ReplacementParserTests(unittest.TestCase):
+    def test_telegram_utf16_offsets_are_converted_before_masking(self):
+        active = "Group A (60 минут) 12:00 - 13:00"
+        struck = "Group B (60 минут) 13:00 - 14:00"
+        message = f"🔥\n05.09.2026 Разовая\n{active}\n{struck}"
+        python_start = message.index(struck)
+        telegram_start = len(message[:python_start].encode("utf-16-le")) // 2
+        telegram_length = len(struck.encode("utf-16-le")) // 2
+
+        result = parse_replacement_message(
+            message,
+            entities=(
+                MessageEntity(
+                    kind="strikethrough",
+                    offset=telegram_start,
+                    length=telegram_length,
+                ),
+            ),
+        )
+
+        self.assertEqual([offer.name for offer in result.offers], ["Group A"])
+
     def test_date_heading_applies_to_following_offer(self):
         message = (
             "05.09.2026 Постоянная замена\n"
