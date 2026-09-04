@@ -16,6 +16,7 @@
 - read-only view `finance_events` как интерфейс для будущей системы личных финансов.
 - идемпотентное сопоставление полных и неполных снимков CRM с diff `new/changed/deleted`;
 - суммы за прошлый месяц, текущую неделю и будущие недели без смешивания начисления с датой выплаты.
+- файловая SQLite migration с проверенным backup и автоматическим rollback при ошибке.
 
 Бот не создаёт урок из сообщения менеджера. Назначенный урок появляется только после следующего импорта из CRM.
 
@@ -45,6 +46,5 @@ python -m unittest discover -s tests -v
 ## Следующие этапы
 
 1. Расширить parser на дополнительные наблюдаемые Telegram-форматы.
-2. Добавить резервную копию и проверяемый rollback для файловой SQLite migration.
-3. После отдельного JIT сравнить локальный кандидат и production по безопасному manifest/hashes.
-4. Подключить выбранные scraper и Telegram adapters, затем выполнить shadow migration и canary.
+2. После отдельного JIT сравнить локальный кандидат и production по безопасному manifest/hashes.
+3. Подключить выбранные scraper и Telegram adapters, затем выполнить shadow migration и canary.

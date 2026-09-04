@@ -1,4 +1,8 @@
 import sqlite3
+from pathlib import Path
+import os
+import tempfile
+from collections.abc import Callable
 
 
 MIGRATION_1 = """
@@ -116,3 +120,94 @@ COMMIT;
 
 def apply_migrations(connection: sqlite3.Connection) -> None:
     connection.executescript(MIGRATION_1)
+
+
+def _assert_integrity(connection: sqlite3.Connection) -> None:
+    result = connection.execute("PRAGMA quick_check").fetchone()
+    if result != ("ok",):
+        raise sqlite3.DatabaseError(f"SQLite integrity check failed: {result!r}")
+
+
+def backup_database(database_path: Path, backup_path: Path) -> None:
+    database_path = Path(database_path)
+    backup_path = Path(backup_path)
+    if not database_path.is_file():
+        raise FileNotFoundError(database_path)
+    if database_path.resolve() == backup_path.resolve():
+        raise ValueError("backup path must differ from database path")
+    if backup_path.exists():
+        raise FileExistsError(backup_path)
+
+    backup_path.parent.mkdir(parents=True, exist_ok=True)
+    source = sqlite3.connect(database_path)
+    destination = sqlite3.connect(backup_path)
+    try:
+        _assert_integrity(source)
+        source.backup(destination)
+        _assert_integrity(destination)
+    except Exception:
+        destination.close()
+        source.close()
+        if backup_path.exists():
+            backup_path.unlink()
+        raise
+    else:
+        destination.close()
+        source.close()
+
+
+def restore_database(backup_path: Path, database_path: Path) -> None:
+    backup_path = Path(backup_path)
+    database_path = Path(database_path)
+    if not backup_path.is_file():
+        raise FileNotFoundError(backup_path)
+    if backup_path.resolve() == database_path.resolve():
+        raise ValueError("backup path must differ from database path")
+
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{database_path.name}.",
+        suffix=".restore",
+        dir=database_path.parent,
+    )
+    os.close(descriptor)
+    temporary_path = Path(temporary_name)
+    source = sqlite3.connect(backup_path)
+    destination = sqlite3.connect(temporary_path)
+    try:
+        _assert_integrity(source)
+        source.backup(destination)
+        _assert_integrity(destination)
+        destination.close()
+        source.close()
+        os.replace(temporary_path, database_path)
+    except Exception:
+        destination.close()
+        source.close()
+        if temporary_path.exists():
+            temporary_path.unlink()
+        raise
+
+
+def migrate_database(
+    database_path: Path,
+    backup_path: Path,
+    *,
+    migration: Callable[[sqlite3.Connection], None] = apply_migrations,
+) -> None:
+    database_path = Path(database_path)
+    backup_path = Path(backup_path)
+    backup_database(database_path, backup_path)
+
+    connection = sqlite3.connect(database_path)
+    try:
+        migration(connection)
+        _assert_integrity(connection)
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        connection.close()
+        restore_database(backup_path, database_path)
+        raise
+    else:
+        connection.close()
