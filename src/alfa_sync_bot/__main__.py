@@ -7,6 +7,7 @@ import sys
 import time
 
 from .database import apply_migrations
+from .gemini_fallback import GeminiFallback
 from .shadow import run_shadow_import
 from .telegram_api import TelegramApiError, TelegramHttpClient
 from .telegram_runtime import process_updates
@@ -58,9 +59,16 @@ def main(argv: list[str] | None = None) -> int:
         try:
             apply_migrations(connection)
             client = TelegramHttpClient(token)
+            gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            gemini_model = os.environ.get(
+                "GEMINI_MODEL", "gemini-3.1-flash-lite-preview"
+            ).strip()
+            fallback = (
+                GeminiFallback(gemini_key, gemini_model) if gemini_key else None
+            )
             while True:
                 try:
-                    process_updates(client, connection)
+                    process_updates(client, connection, fallback=fallback)
                 except TelegramApiError as error:
                     print(f"telegram polling failed: {error}", file=sys.stderr)
                     time.sleep(5)

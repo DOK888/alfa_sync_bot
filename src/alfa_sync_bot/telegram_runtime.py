@@ -19,6 +19,10 @@ class TelegramClient(Protocol):
     def send_message(self, chat_id: int, text: str) -> None: ...
 
 
+class ReplacementFallback(Protocol):
+    def canonicalize(self, text: str, reference_date: date | None) -> str | None: ...
+
+
 def _message_entities(message: dict) -> tuple[MessageEntity, ...]:
     return tuple(
         MessageEntity(
@@ -40,7 +44,10 @@ def message_reference_date(message: dict) -> date | None:
 
 
 def process_updates(
-    client: TelegramClient, connection: sqlite3.Connection
+    client: TelegramClient,
+    connection: sqlite3.Connection,
+    *,
+    fallback: ReplacementFallback | None = None,
 ) -> int | None:
     stored_offset = get_runtime_state(connection, STATE_KEY)
     offset = int(stored_offset) if stored_offset is not None else None
@@ -58,19 +65,30 @@ def process_updates(
             if isinstance(text, str) and isinstance(chat, dict):
                 chat_id = chat.get("id")
                 entities = _message_entities(message)
+                reference_date = message_reference_date(message)
                 parsed = parse_replacement_message(
-                    text, entities, reference_date=message_reference_date(message)
+                    text, entities, reference_date=reference_date
                 )
+                analysis_text = text
+                analysis_entities = entities
+                if fallback and (not parsed.offers or parsed.unresolved_offer_count):
+                    canonical = fallback.canonicalize(text, reference_date)
+                    if canonical:
+                        analysis_text = canonical
+                        analysis_entities = ()
+                        parsed = parse_replacement_message(
+                            canonical, reference_date=reference_date
+                        )
                 if isinstance(chat_id, int) and (
                     parsed.offers or parsed.unresolved_offer_count
                 ):
                     client.send_message(
                         chat_id,
                         analyze_replacement_text(
-                            text,
+                            analysis_text,
                             connection,
-                            entities,
-                            reference_date=message_reference_date(message),
+                            analysis_entities,
+                            reference_date=reference_date,
                         ),
                     )
 

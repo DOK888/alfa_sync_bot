@@ -20,7 +20,24 @@ class FakeTelegramClient:
         self.sent_messages.append((chat_id, text))
 
 
+class FakeFallback:
+    def canonicalize(self, text, reference_date):
+        return "06.09.2026 Разовая\nFallback_Group (60 минут) 12:00 — 13:00"
+
+
 class TelegramRuntimeTests(unittest.TestCase):
+    def test_fallback_canonical_text_receives_an_availability_reply(self):
+        connection = sqlite3.connect(":memory:")
+        apply_migrations(connection)
+        client = FakeTelegramClient(
+            [{"update_id": 1, "message": {"chat": {"id": 1001}, "text": "Новый формат"}}]
+        )
+
+        process_updates(client, connection, fallback=FakeFallback())
+
+        self.assertEqual(len(client.sent_messages), 1)
+        self.assertIn("Fallback_Group", client.sent_messages[0][1])
+
     def test_message_timestamp_becomes_yekaterinburg_reference_date(self):
         message = {
             "date": int(datetime(2026, 9, 5, 21, tzinfo=timezone.utc).timestamp())
