@@ -8,7 +8,7 @@ import time
 
 from .database import apply_migrations
 from .gemini_fallback import GeminiFallback
-from .shadow import run_shadow_import
+from .shadow import consume_import_request, run_shadow_import
 from .telegram_api import TelegramApiError, TelegramHttpClient
 from .telegram_runtime import process_updates
 
@@ -41,6 +41,18 @@ def _print_shadow_result(result) -> None:
             sort_keys=True,
         )
     )
+
+
+def _wait_for_shadow_trigger(database_path: Path, interval_seconds: int) -> None:
+    deadline = time.monotonic() + interval_seconds
+    while time.monotonic() < deadline:
+        connection = sqlite3.connect(database_path)
+        try:
+            if consume_import_request(connection):
+                return
+        finally:
+            connection.close()
+        time.sleep(min(1, max(0, deadline - time.monotonic())))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -92,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.interval_seconds == 0:
             return 0
         try:
-            time.sleep(args.interval_seconds)
+            _wait_for_shadow_trigger(args.database, args.interval_seconds)
         except KeyboardInterrupt:
             return 0
 

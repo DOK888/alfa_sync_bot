@@ -132,10 +132,26 @@ VALUES (2, CURRENT_TIMESTAMP);
 COMMIT;
 """
 
+MIGRATION_3 = """
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS telegram_chats (
+    chat_id INTEGER PRIMARY KEY,
+    notification_after_change_id INTEGER NOT NULL DEFAULT 0,
+    registered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT OR IGNORE INTO schema_migrations (version, applied_at)
+VALUES (3, CURRENT_TIMESTAMP);
+
+COMMIT;
+"""
+
 
 def apply_migrations(connection: sqlite3.Connection) -> None:
     connection.executescript(MIGRATION_1)
     connection.executescript(MIGRATION_2)
+    connection.executescript(MIGRATION_3)
 
 
 def get_runtime_state(connection: sqlite3.Connection, key: str) -> str | None:

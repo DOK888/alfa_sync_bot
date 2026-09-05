@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 import sqlite3
 
-from .database import apply_migrations
+from .database import apply_migrations, get_runtime_state, set_runtime_state
+from .finance_projection import reconcile_income_accruals
 from .legacy_report import parse_legacy_report
 from .lesson_sync import reconcile_snapshot
 
@@ -13,6 +14,22 @@ class ShadowResult:
     change_counts: dict[str, int]
     complete_sources: set[str]
     rejected_lesson_count: int
+
+
+IMPORT_REQUEST_KEY = "shadow.import_requested"
+
+
+def request_import(connection: sqlite3.Connection) -> None:
+    set_runtime_state(connection, IMPORT_REQUEST_KEY, "1")
+    connection.commit()
+
+
+def consume_import_request(connection: sqlite3.Connection) -> bool:
+    requested = get_runtime_state(connection, IMPORT_REQUEST_KEY) == "1"
+    if requested:
+        set_runtime_state(connection, IMPORT_REQUEST_KEY, "0")
+        connection.commit()
+    return requested
 
 
 def run_shadow_import(report_path: Path, database_path: Path) -> ShadowResult:
@@ -37,6 +54,7 @@ def run_shadow_import(report_path: Path, database_path: Path) -> ShadowResult:
             )
             for change in changes:
                 change_counts[change.change_type] += 1
+        reconcile_income_accruals(connection)
     finally:
         connection.close()
 

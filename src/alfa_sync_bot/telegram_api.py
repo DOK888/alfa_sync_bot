@@ -36,5 +36,10 @@ class TelegramHttpClient:
         result = self._request("getUpdates", payload)
         return result if isinstance(result, list) else []
 
-    def send_message(self, chat_id: int, text: str) -> None:
-        self._request("sendMessage", {"chat_id": chat_id, "text": text})
+    def send_message(
+        self, chat_id: int, text: str, reply_markup: dict[str, Any] | None = None
+    ) -> None:
+        payload: dict[str, Any] = {"chat_id": chat_id, "text": text}
+        if reply_markup is not None:
+            payload["reply_markup"] = reply_markup
+        self._request("sendMessage", payload)
