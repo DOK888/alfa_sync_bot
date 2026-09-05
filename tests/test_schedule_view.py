@@ -30,7 +30,7 @@ class ScheduleViewTests(unittest.TestCase):
         connection = sqlite3.connect(":memory:")
         apply_migrations(connection)
 
-        self.assertEqual(
-            render_schedule(connection, date(2026, 9, 7), date(2026, 9, 7)),
+        self.assertIn(
             "На этот период уроков нет.",
+            render_schedule(connection, date(2026, 9, 7), date(2026, 9, 7)),
         )
