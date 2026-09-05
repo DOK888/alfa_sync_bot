@@ -1,9 +1,12 @@
 from collections.abc import Callable
 from datetime import datetime
 import sqlite3
+from .access import owner_id
 
 
 def register_chat(connection: sqlite3.Connection, chat_id: int) -> None:
+    if type(chat_id) is not int or chat_id != owner_id():
+        raise PermissionError('Owner-only registration')
     watermark = connection.execute(
         "SELECT COALESCE(MAX(id), 0) FROM lesson_changes"
     ).fetchone()[0]
@@ -27,7 +30,8 @@ def deliver_pending_notifications(
 ) -> int:
     delivered = 0
     chats = connection.execute(
-        "SELECT chat_id, notification_after_change_id FROM telegram_chats"
+        "SELECT chat_id, notification_after_change_id FROM telegram_chats WHERE chat_id = ?",
+        (owner_id(),),
     ).fetchall()
     for chat_id, watermark in chats:
         channel = f"telegram:{chat_id}"

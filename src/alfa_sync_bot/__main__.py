@@ -7,6 +7,7 @@ import sys
 import time
 
 from .database import apply_migrations
+from .access import owner_id
 from .gemini_fallback import GeminiFallback
 from .shadow import consume_import_request, run_shadow_import
 from .telegram_api import TelegramApiError, TelegramHttpClient
@@ -66,6 +67,11 @@ def main(argv: list[str] | None = None) -> int:
         token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
         if not token:
             print("TELEGRAM_BOT_TOKEN is required", file=sys.stderr)
+            return 2
+        try:
+            owner_id()
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
             return 2
         connection = sqlite3.connect(args.database)
         try:

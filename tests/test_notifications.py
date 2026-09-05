@@ -1,11 +1,17 @@
 import sqlite3
 import unittest
+import os
+from unittest.mock import patch
 
 from alfa_sync_bot.database import apply_migrations
 from alfa_sync_bot.notifications import deliver_pending_notifications, register_chat
 
 
 class NotificationTests(unittest.TestCase):
+    def setUp(self):
+        env = patch.dict(os.environ, {'TELEGRAM_ALLOWED_USER_ID': '1001'})
+        env.start()
+        self.addCleanup(env.stop)
     def _change(self, connection, change_id, group_name="Group"):
         connection.execute(
             "INSERT INTO lessons (id, source, external_lesson_id, group_name, start_at, end_at, duration_minutes, status) VALUES (?, 'x', ?, ?, '2026-09-07T12:00:00+05:00', '2026-09-07T13:00:00+05:00', 60, 'planned')",

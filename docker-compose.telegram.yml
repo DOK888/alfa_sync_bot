@@ -6,6 +6,7 @@ services:
     command: telegram --database /state/shadow.sqlite3
     env_file:
       - .env
+      - .env.owner
     restart: unless-stopped
     volumes:
       - ${SHADOW_STATE_DIR}:/state

@@ -1,6 +1,8 @@
 import sqlite3
 from datetime import date, datetime, timezone
 import unittest
+import os
+from unittest.mock import patch
 
 from alfa_sync_bot.database import apply_migrations, get_runtime_state
 from alfa_sync_bot.telegram_runtime import message_reference_date, process_updates
@@ -8,6 +10,12 @@ from alfa_sync_bot.telegram_runtime import message_reference_date, process_updat
 
 class FakeTelegramClient:
     def __init__(self, updates):
+        # Positive-path fixtures represent authenticated private owner messages.
+        for update in updates:
+            message = update.get('message', {})
+            if 'chat' in message:
+                message['chat'].setdefault('type', 'private')
+                message.setdefault('from', {'id': 1001})
         self.updates = updates
         self.requested_offsets = []
         self.sent_messages = []
@@ -26,6 +34,10 @@ class FakeFallback:
 
 
 class TelegramRuntimeTests(unittest.TestCase):
+    def setUp(self):
+        env = patch.dict(os.environ, {'TELEGRAM_ALLOWED_USER_ID': '1001'})
+        env.start()
+        self.addCleanup(env.stop)
     def test_start_registers_chat_and_sends_persistent_menu(self):
         connection = sqlite3.connect(":memory:")
         apply_migrations(connection)

@@ -1,5 +1,25 @@
 # Alfa Sync Bot
 
+## Owner-only access repair
+
+Telegram requires `TELEGRAM_ALLOWED_USER_ID`, a positive owner user ID, in the
+server-only `.env.owner`. Missing/invalid configuration stops startup before
+polling. Requests require both the sender ID and private chat ID to match the
+owner. No user can claim ownership with `/start` or `Меню`. Notification delivery
+filters by the configured owner even if other chats were registered previously;
+old registration records are retained but cannot receive messages.
+
+On Hermes, stop `alfa_sync_bot_v2_telegram` first. Fetch the fixed branch and run
+`python3 scripts/prepare_owner_config.py /home/hermes/alfa_sync/app/tg_bot.py`.
+The helper statically extracts only the legacy `ALLOWED_USER_ID` integer without
+executing the legacy module or copying credentials. It refuses ambiguous values
+and conflicting existing configuration. Then rebuild/recreate the Telegram
+service. Do not roll back to the unauthenticated image; leave it stopped if the
+repair cannot start. Collector configuration is not changed by this repair.
+
+Tests cover foreign commands, replacement text, AI bypass prevention, group-chat
+rejection, missing sender/configuration, and preexisting foreign subscriptions.
+
 Новая проверяемая основа школьного Telegram-бота. Проект развивается отдельно от Homelab documentation repository и пока не подключён к production.
 
 ## Что уже заложено

@@ -5,6 +5,7 @@ import sqlite3
 from zoneinfo import ZoneInfo
 
 from .database import get_runtime_state, set_runtime_state
+from .access import owner_id, is_owner_message
 from .finance_view import render_finance
 from .gemini_fallback import should_use_fallback
 from .message_service import analyze_replacement_text
@@ -69,6 +70,7 @@ def process_updates(
     *,
     fallback: ReplacementFallback | None = None,
 ) -> int | None:
+    owner = owner_id()
     stored_offset = get_runtime_state(connection, STATE_KEY)
     offset = int(stored_offset) if stored_offset is not None else None
     next_offset = offset
@@ -79,6 +81,9 @@ def process_updates(
             continue
 
         message = update.get("message")
+        if not is_owner_message(message, owner):
+            next_offset = max(next_offset or 0, update_id + 1)
+            continue
         if isinstance(message, dict):
             text = message.get("text")
             chat = message.get("chat")
